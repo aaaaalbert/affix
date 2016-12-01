@@ -108,6 +108,8 @@ class MakeMeHearAffix(baseaffix.BaseAffix):
       A listening socket.
     """
     log("Running canihear test for local address", localip, "port", localport, "\n")
+    # Default to assuming we cannot hear on a local port, i.e. are firewalled
+    can_hear_on_localport = False
     try:
       (can_hear_on_localport, _, _)  = canihear.check_specific_port(localport)
     except (AlreadyListeningError, DuplicateTupleError, RepyArgumentError, 
@@ -121,14 +123,13 @@ class MakeMeHearAffix(baseaffix.BaseAffix):
       # XXX Can't catch AdvertiseError???
 
       # These mean we couldn't find/contact canihear servers. 
-      # I'll treat this as an error and not try to work around. 
-      # (Another option would be to continue and assume we can't 
-      # hear on localport. This however means that an error in 
-      # the canihear/advertise services will cause all previously 
-      # non-relayed nodes to thrash our TCP relays, and possibly 
-      # knock out advertise/relay services. 
-      # Conversely, assuming we *can* hear, yields a de-facto 
-      # unusable port, see the comment below).
+      # I'll assume this means we are firewalled. While this
+      # causes additional load on the TCP relays from actually-non
+      # firewalled nodes, we do not want any nodes to be shut off
+      # of access because the Affix calling into us doesn't deal
+      # with the error we used to raise here.
+      # Also, assuming we *can* hear is not safe: it yields a de-facto
+      # unusable port, see the comment below.
       raise AddressBindingError("MakeMeHearAffix: Error looking up or contacting canihear servers. Exception encountered: " + repr(e))
 
     # Add in an Affix (the TCPRelayAffix per default) if we cannot 
